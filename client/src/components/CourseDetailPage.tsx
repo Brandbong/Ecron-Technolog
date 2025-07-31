@@ -1,22 +1,19 @@
 import React, { useState } from 'react';
 import { ArrowLeft, User, Mail, Phone, MessageSquare, GraduationCap, Send, CheckCircle } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
+import { createCourseApplication } from '../lib/supabaseClient';
 
 interface CourseDetailPageProps {
   courseId: string;
   onBack: () => void;
 }
 
-interface CourseApplication {
-  id?: string;
+interface CourseApplicationData {
   fullName: string;
   email: string;
   phone: string;
   courseName: string;
   experienceLevel: string;
   interestMessage: string;
-  createdAt?: string;
 }
 
 const CourseDetailPage: React.FC<CourseDetailPageProps> = ({ courseId, onBack }) => {
@@ -29,30 +26,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({ courseId, onBack })
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-  // Create mutation for course application
-  const createCourseApplication = useMutation({
-    mutationFn: async (applicationData: Omit<CourseApplication, 'id' | 'createdAt'>) => {
-      return apiRequest('/api/course-applications', {
-        method: 'POST',
-        body: JSON.stringify(applicationData),
-      });
-    },
-    onSuccess: () => {
-      setSubmitStatus('success');
-      setFormData({
-        fullName: '',
-        email: '',
-        phone: '',
-        experienceLevel: '',
-        interestMessage: ''
-      });
-    },
-    onError: (error: any) => {
-      console.error('Error submitting course application:', error);
-      setSubmitStatus('error');
-    },
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Course data mapping
   const courseData: Record<string, any> = {
@@ -415,18 +389,33 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({ courseId, onBack })
       return;
     }
 
+    setIsSubmitting(true);
     setSubmitStatus('idle');
-    
-    const courseApplication: Omit<CourseApplication, 'id' | 'createdAt'> = {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      courseName: course.title,
-      experienceLevel: formData.experienceLevel,
-      interestMessage: formData.interestMessage
-    };
 
-    createCourseApplication.mutate(courseApplication);
+    try {
+      await createCourseApplication({
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        course_name: course.title,
+        experience_level: formData.experienceLevel,
+        interest_message: formData.interestMessage
+      });
+
+      setSubmitStatus('success');
+      setFormData({
+        fullName: '',
+        email: '',
+        phone: '',
+        experienceLevel: '',
+        interestMessage: ''
+      });
+    } catch (error: any) {
+      console.error('Error submitting course application:', error);
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitStatus === 'success') {
@@ -670,10 +659,10 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({ courseId, onBack })
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={createCourseApplication.isPending}
+                disabled={isSubmitting}
                 className="w-full bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 disabled:from-pink-400 disabled:to-pink-500 text-white py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-3 group transform hover:scale-105 shadow-lg hover:shadow-xl disabled:transform-none disabled:cursor-not-allowed"
               >
-                {createCourseApplication.isPending ? (
+                {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     Submitting Application...

@@ -1,18 +1,15 @@
 import React from 'react';
 import { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Send, Navigation } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
+import { createContactMessage } from '../lib/supabaseClient';
 
-interface ContactMessage {
-  id?: string;
+interface ContactFormData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   courseInterest?: string;
   message: string;
-  createdAt?: string;
 }
 
 const Contact: React.FC = () => {
@@ -27,30 +24,7 @@ const Contact: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-  // Create mutation for contact form
-  const createContactMessage = useMutation({
-    mutationFn: async (messageData: Omit<ContactMessage, 'id' | 'createdAt'>) => {
-      return apiRequest('/api/contact', {
-        method: 'POST',
-        body: JSON.stringify(messageData),
-      });
-    },
-    onSuccess: () => {
-      setSubmitStatus('success');
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        courseInterest: '',
-        message: ''
-      });
-    },
-    onError: (error: any) => {
-      console.error('Error submitting contact form:', error);
-      setSubmitStatus('error');
-    },
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const contactInfo = [
     {
@@ -136,18 +110,34 @@ const Contact: React.FC = () => {
       return;
     }
 
+    setIsSubmitting(true);
     setSubmitStatus('idle');
-    
-    const contactMessage: Omit<ContactMessage, 'id' | 'createdAt'> = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      courseInterest: formData.courseInterest || undefined,
-      message: formData.message
-    };
 
-    createContactMessage.mutate(contactMessage);
+    try {
+      await createContactMessage({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        course_interest: formData.courseInterest || null,
+        message: formData.message
+      });
+
+      setSubmitStatus('success');
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        courseInterest: '',
+        message: ''
+      });
+    } catch (error: any) {
+      console.error('Error submitting contact form:', error);
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -387,10 +377,10 @@ const Contact: React.FC = () => {
               
               <button
                 type="submit"
-                disabled={createContactMessage.isPending}
+                disabled={isSubmitting}
                 className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 disabled:from-pink-400 disabled:to-pink-500 text-white px-8 py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-3 group transform hover:scale-105 shadow-lg hover:shadow-xl disabled:transform-none disabled:cursor-not-allowed"
               >
-                {createContactMessage.isPending ? (
+                {isSubmitting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     Sending...

@@ -1,22 +1,19 @@
 import React, { useState } from 'react';
 import { X, User, Phone, Mail, Clock, BookOpen, Send } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
+import { createDemoApplication } from '../lib/supabaseClient';
 
 interface DemoFormProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface DemoApplication {
-  id?: string
+interface DemoApplicationData {
   name: string
   phone: string
   email: string
   courseForDemo: string
   availableTime: string
   preferredDate?: string
-  createdAt?: string
 }
 
 const DemoForm: React.FC<DemoFormProps> = ({ isOpen, onClose }) => {
@@ -28,31 +25,7 @@ const DemoForm: React.FC<DemoFormProps> = ({ isOpen, onClose }) => {
     availableTime: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Create mutation for demo application
-  const createDemoApplication = useMutation({
-    mutationFn: async (applicationData: Omit<DemoApplication, 'id' | 'createdAt'>) => {
-      return apiRequest('/api/demo-applications', {
-        method: 'POST',
-        body: JSON.stringify(applicationData),
-      });
-    },
-    onSuccess: () => {
-      alert('Thank you! Our team will contact you shortly.');
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        courseForDemo: '',
-        availableTime: ''
-      });
-      onClose();
-    },
-    onError: (error: any) => {
-      console.error('Error submitting demo application:', error);
-      alert('There was an error submitting your request. Please try again.');
-    },
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const courses = [
     'MEAN Stack Development',
@@ -127,15 +100,32 @@ const DemoForm: React.FC<DemoFormProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    const demoApplication: Omit<DemoApplication, 'id' | 'createdAt'> = {
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      courseForDemo: formData.courseForDemo,
-      availableTime: formData.availableTime
-    };
+    setIsSubmitting(true);
 
-    createDemoApplication.mutate(demoApplication);
+    try {
+      await createDemoApplication({
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        course_for_demo: formData.courseForDemo,
+        available_time: formData.availableTime
+      });
+
+      alert('Thank you! Our team will contact you shortly.');
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        courseForDemo: '',
+        availableTime: ''
+      });
+      onClose();
+    } catch (error: any) {
+      console.error('Error submitting demo application:', error);
+      alert('There was an error submitting your request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -289,10 +279,10 @@ const DemoForm: React.FC<DemoFormProps> = ({ isOpen, onClose }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={createDemoApplication.isPending}
+            disabled={isSubmitting}
             className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 disabled:from-pink-400 disabled:to-pink-500 text-white py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-3 group transform hover:scale-105 shadow-lg hover:shadow-xl disabled:transform-none disabled:cursor-not-allowed"
           >
-            {createDemoApplication.isPending ? (
+            {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 Scheduling Demo...

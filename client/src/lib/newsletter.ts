@@ -1,4 +1,4 @@
-import { apiRequest } from './queryClient';
+import { createNewsletterSubscription, checkNewsletterSubscription } from './supabaseClient';
 
 // Newsletter subscription interface
 export interface NewsletterSubscription {
@@ -15,10 +15,15 @@ export const subscribeToNewsletter = async (email: string): Promise<{ success: b
       return { success: false, error: 'Please enter a valid email address' };
     }
 
-    const response = await apiRequest('/api/newsletter/subscribe', {
-      method: 'POST',
-      body: JSON.stringify({ email: email.toLowerCase().trim() }),
-    });
+    const emailToSubscribe = email.toLowerCase().trim();
+    
+    // Check if already subscribed
+    const alreadySubscribed = await checkNewsletterSubscription(emailToSubscribe);
+    if (alreadySubscribed) {
+      return { success: false, error: 'This email is already subscribed to our newsletter' };
+    }
+
+    await createNewsletterSubscription({ email: emailToSubscribe });
 
     return { success: true };
   } catch (error: any) {
@@ -30,31 +35,5 @@ export const subscribeToNewsletter = async (email: string): Promise<{ success: b
     }
     
     return { success: false, error: error.message || 'Failed to subscribe. Please try again.' };
-  }
-};
-
-// Get all newsletter subscriptions (admin only)
-export const getNewsletterSubscriptions = async (): Promise<NewsletterSubscription[]> => {
-  try {
-    const response = await apiRequest('/api/newsletter/subscriptions');
-    return response.data || [];
-  } catch (error) {
-    console.error('Error fetching newsletter subscriptions:', error);
-    return [];
-  }
-};
-
-// Unsubscribe from newsletter
-export const unsubscribeFromNewsletter = async (email: string): Promise<{ success: boolean; error?: string }> => {
-  try {
-    await apiRequest('/api/newsletter/unsubscribe', {
-      method: 'DELETE',
-      body: JSON.stringify({ email: email.toLowerCase().trim() }),
-    });
-
-    return { success: true };
-  } catch (error: any) {
-    console.error('Newsletter unsubscribe error:', error);
-    return { success: false, error: error.message || 'Failed to unsubscribe. Please try again.' };
   }
 };
