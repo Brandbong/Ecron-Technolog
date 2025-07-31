@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, GraduationCap, Calendar, Building, Phone, Mail, Shield, Send, CheckCircle } from 'lucide-react';
+import { createEventRegistration } from '../lib/supabaseClient';
 
 interface EventRegistrationFormProps {
   onBack: () => void;
@@ -39,6 +40,7 @@ const EventRegistrationForm: React.FC<EventRegistrationFormProps> = ({ onBack })
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string>('');
   const [captchaQuestion, setCaptchaQuestion] = useState({ question: '', answer: 0 });
 
   // Check if form was already submitted
@@ -190,8 +192,17 @@ const EventRegistrationForm: React.FC<EventRegistrationFormProps> = ({ onBack })
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await createEventRegistration({
+        name: formData.name,
+        degree: formData.degree,
+        year: formData.year,
+        college_name: formData.collegeName,
+        university_name: formData.universityName,
+        contact_number: formData.contactNumber,
+        alternate_number: formData.alternateNumber || null,
+        email_id: formData.emailId,
+        certificate_code: formData.certificateCode
+      });
       
       // Mark as submitted in localStorage
       localStorage.setItem('campusToCloudRegistered', 'true');
@@ -200,7 +211,7 @@ const EventRegistrationForm: React.FC<EventRegistrationFormProps> = ({ onBack })
       setIsSubmitted(true);
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+      setSubmitError('Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -264,6 +275,12 @@ const EventRegistrationForm: React.FC<EventRegistrationFormProps> = ({ onBack })
       {/* Registration Form */}
       <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 border border-green-100">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {submitError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-700 font-semibold">{submitError}</p>
+            </div>
+          )}
+
           {/* Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
